@@ -79,7 +79,7 @@ function startMusic(){if(!soundOn||state!=='playing')return;ensureAudio();if(!au
 function stopMusic(){if(musicTimer){clearInterval(musicTimer);musicTimer=null}}
 soundBtn.addEventListener('click',e=>{e.stopPropagation();soundOn=!soundOn;soundBtn.textContent=soundOn?'♫':'♪';soundBtn.style.opacity=soundOn?'1':'.65';if(soundOn){ensureAudio();if(state==='playing')startMusic()}else stopMusic()});
 function begin(){ensureAudio();if(state==='over'){score=0;carrots=0;obstacles=[];pickups=[];particles=[];shieldRemaining=0;shieldSpawnIn=12;speed=235;world=0;spawn=.65}state='playing';overlay.classList.add('hidden');hint.textContent='TAP TO HOP • GRAB CARROTS';startMusic();playBtn.blur();bunny.y=floorY()-54;bunny.vy=0;bunny.grounded=true}
-function action(){if(state==='ready'||state==='over'){begin();return}if(state==='playing'&&bunny.grounded){bunny.vy=-515;bunny.grounded=false;sfx('jump');burst(bunny.x+20,bunny.y+58,'#fff4ca',5)}}
+function action(){if(state==='ready'||state==='over'){begin();return}if(state==='playing'&&bunny.grounded){bunny.vy=-560;bunny.grounded=false;sfx('jump');burst(bunny.x+20,bunny.y+58,'#fff4ca',5)}}
 playBtn.addEventListener('click',e=>{e.stopPropagation();action()});canvas.addEventListener('pointerdown',e=>{e.preventDefault();action()},{passive:false});window.addEventListener('keydown',e=>{if(['Space','ArrowUp','KeyW','Enter'].includes(e.code)){e.preventDefault();action()}});
 function burst(x,y,color,n){for(let i=0;i<n;i++)particles.push({x,y,vx:rand(-95,95),vy:rand(-150,-25),life:rand(.25,.55),max:.55,size:rand(3,7),color})}
 function addObstacle(){const type=Math.random()<.24?'rock':'stump';obstacles.push({x:W+35,w:type==='rock'?rand(34,42):rand(30,39),h:type==='rock'?rand(30,42):rand(37,53),type})}
