@@ -293,6 +293,23 @@
       background: #fef08a;
     }
 
+    /* Active Turbo Boost Status Pill */
+    #boost-pill {
+      display: none;
+      align-items: center;
+      gap: 7px;
+      background: linear-gradient(135deg, rgba(8, 145, 178, 0.88), rgba(14, 116, 144, 0.88));
+      border: 1.5px solid #67e8f9;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #fff;
+      box-shadow: 0 0 16px rgba(34, 211, 238, 0.55);
+      width: fit-content;
+      margin-top: 4px;
+    }
+
     
     
 
@@ -722,6 +739,14 @@
             <div id="shield-timer-fill" class="shield-timer-fill"></div>
           </div>
         </div>
+
+        <!-- Active Turbo Boost Countdown Pill -->
+        <div id="boost-pill">
+          <span>⚡ TURBO 2x SCORE</span>
+          <div class="shield-timer-track">
+            <div id="boost-timer-fill" class="shield-timer-fill" style="background:#67e8f9;"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Center Lane Fox Warning -->
@@ -786,6 +811,13 @@
             <div class="guide-text">
               <strong>Shield &amp; Berries</strong>
               <span>5s Invincibility + Bonus</span>
+            </div>
+          </div>
+          <div class="guide-item">
+            <div class="guide-icon">⚡</div>
+            <div class="guide-text">
+              <strong>Turbo Burst</strong>
+              <span>5s Speed Dash + 2x Score</span>
             </div>
           </div>
         </div>
@@ -1189,6 +1221,8 @@
         cameraShake: 0,
         facecamVisible: SafeStorage.get('bunnyRunner_facecam', '1') !== '0',
         magnetTimer: 0,
+        boostTimer: 0,
+        boostMax: 5.0,
         lastWaveHadFox: false,
         zoneIndex: 0,
         totalCarrots: safeNum(SafeStorage.get('bunnyRunner_totalCarrots', 0), 0),
@@ -1862,6 +1896,26 @@
           );
           magRing.position.y = 1.05;
           g.add(magRing);
+        } else if (type === 'boost') {
+          // Cyan Lightning Crystal (Turbo Burst)
+          var boltMat = new THREE.MeshStandardMaterial({
+            color: 0x22d3ee,
+            emissive: 0x0891b2,
+            emissiveIntensity: 0.75,
+            metalness: 0.4,
+            roughness: 0.15
+          });
+          var bolt = new THREE.Mesh(new THREE.OctahedronGeometry(0.46, 0), boltMat);
+          bolt.scale.set(0.7, 1.35, 0.7);
+          bolt.position.y = 1.05;
+          g.add(bolt);
+          var boltRing = new THREE.Mesh(
+            new THREE.TorusGeometry(0.6, 0.06, 8, 20),
+            new THREE.MeshBasicMaterial({ color: 0x67e8f9 })
+          );
+          boltRing.position.y = 1.05;
+          boltRing.rotation.x = Math.PI / 2.4;
+          g.add(boltRing);
         }
         return g;
       }
@@ -1970,6 +2024,8 @@
               spawnPickup('berry', freeLane, zStart - 2.0, 0.35);
             } else if (specialRoll < 0.255 && GameState.magnetTimer <= 0) {
               spawnPickup('magnet', freeLane, zStart - 2.0, 0.2);
+            } else if (specialRoll < 0.315 && GameState.boostTimer <= 0) {
+              spawnPickup('boost', freeLane, zStart - 2.0, 0.2);
             } else {
               for (var c = 0; c < 3; c++) {
                 spawnPickup('carrot', freeLane, zStart + (c - 1) * 2.5, 0.1);
@@ -2096,6 +2152,16 @@
               shieldPill.style.display = 'none';
             }
           }
+          var boostPill = document.getElementById('boost-pill');
+          var boostFill = document.getElementById('boost-timer-fill');
+          if (boostPill && boostFill) {
+            if (GameState.boostTimer > 0) {
+              boostPill.style.display = 'inline-flex';
+              boostFill.style.width = clamp((GameState.boostTimer / GameState.boostMax) * 100, 0, 100) + '%';
+            } else {
+              boostPill.style.display = 'none';
+            }
+          }
         } catch (e) {}
       }
 
@@ -2217,6 +2283,7 @@
           GameState.crashTimer = 0;
           GameState.spawnDistanceCounter = 0;
           GameState.magnetTimer = 0;
+          GameState.boostTimer = 0;
           GameState.lastWaveHadFox = false;
           GameState.zoneIndex = 0;
 
@@ -2381,15 +2448,17 @@
           // 1. Speed & Difficulty Ramp (gentle staged curve with breather valleys, ~150s to peak)
           var breathTarget = GameState.maxSpeed - 1.5 - Math.sin(GameState.distance * 0.012) * 1.5;
           GameState.speed = Math.min(breathTarget, GameState.speed + dt * 0.085);
-          var moveDist = GameState.speed * dt;
+          // Turbo Burst: 35% faster travel + double score, difficulty curve untouched (safe)
+          var boostOn = GameState.boostTimer > 0;
+          var moveDist = GameState.speed * dt * (boostOn ? 1.35 : 1);
           GameState.distance += moveDist * 0.45;
-          GameState.score += moveDist * 0.65 * GameState.combo;
+          GameState.score += moveDist * 0.65 * GameState.combo * (boostOn ? 2 : 1);
 
           // Speed lines overlay when running fast
           var speedRatio = clamp((GameState.speed - GameState.baseSpeed) / (GameState.maxSpeed - GameState.baseSpeed), 0, 1);
           var speedLinesEl = document.getElementById('speed-lines');
           if (speedLinesEl) {
-            speedLinesEl.style.opacity = (speedRatio * 0.85).toFixed(2);
+            speedLinesEl.style.opacity = Math.max(speedRatio * 0.85, boostOn ? 0.55 : 0).toFixed(2);
           }
 
           // Dynamic Day-Dusk-Twilight-Starlight Gradient Shift driven by distance (cycles back toward dawn)
@@ -2443,6 +2512,10 @@
 
           if (GameState.magnetTimer > 0) {
             GameState.magnetTimer = Math.max(0, GameState.magnetTimer - dt);
+          }
+
+          if (GameState.boostTimer > 0) {
+            GameState.boostTimer = Math.max(0, GameState.boostTimer - dt);
           }
 
           if (GameState.shieldTimer > 0) {
@@ -2697,6 +2770,14 @@
                 triggerFlash('rgba(253, 224, 71, 0.28)');
                 spawnParticles(pk.x, pk.y + 1.0, pk.z, 0xfde047, 12);
                 showFloatingText('🧲 MAGNET SURGE! 6s', '#fde047');
+              } else if (pk.type === 'boost') {
+                GameState.boostTimer = GameState.boostMax;
+                GameState.comboTimer = 4.2;
+                GameState.score += 150;
+                SoundEngine.playShield();
+                triggerFlash('rgba(34, 211, 238, 0.28)');
+                spawnParticles(pk.x, pk.y + 1.0, pk.z, 0x67e8f9, 12);
+                showFloatingText('⚡ TURBO BURST! 2x SCORE 5s', '#67e8f9');
               } else if (pk.type === 'berry') {
                 GameState.berries++;
                 GameState.totalBerries++;
